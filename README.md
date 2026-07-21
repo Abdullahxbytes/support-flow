@@ -1,53 +1,68 @@
-# SupportFlow Backend
+# SupportFlow
 
-Autonomous, cloud-hybrid B2B customer support triage and helpdesk platform for SMEs.
+An autonomous, cloud hybrid customer support triage engine built for small to medium enterprises (SMEs).
 
-## Architecture
+## Overview
 
-SupportFlow uses a **Hybrid Autopilot** dual-execution pipeline:
+Customer support teams at growing businesses face a common bottleneck: every incoming ticket, regardless of complexity, lands in the same queue and demands the same manual attention. Simple questions about business hours or password resets compete for agent time alongside sensitive refund disputes and escalation requests. The result is slower response times, inconsistent quality, and burned out support staff.
 
-- **Autopilot Track** — Fully autonomous ticket resolution via Groq LLM + Qdrant RAG with gatekeeping rules (vector similarity, sentiment, risk category).
-- **Co-Pilot Track** — Human-in-the-loop escalation with pre-drafted AI response cards for single-click agent approval.
+SupportFlow eliminates this inefficiency by introducing a Hybrid Autopilot pipeline that classifies, routes, and resolves tickets through two distinct execution tracks.
 
-## Tech Stack
+### Autopilot Mode (Fully Autonomous)
 
-| Layer            | Technology                          |
-|------------------|-------------------------------------|
-| Backend API      | FastAPI (async/await)               |
-| Database         | PostgreSQL 15                       |
-| Async Queue      | Redis 7 + Celery                    |
-| AI Inference     | Groq Cloud (`llama-3.1-8b-instant`) |
-| Vector Database  | Qdrant Cloud                        |
+When an incoming ticket meets all three gatekeeping conditions, SupportFlow handles it end to end without human involvement:
 
-## Quick Start
+1. **Vector Similarity Check** queries the company FAQ knowledge base stored in Qdrant Cloud. If the ticket content scores above the confidence threshold against existing documentation, the system considers it a known question.
+2. **Sentiment Analysis** evaluates the tone of the message. Only tickets with positive or neutral sentiment proceed through the autonomous track.
+3. **Category Risk Filter** screens for high risk categories such as refund requests, legal inquiries, or account security issues. These are never auto resolved.
 
-```bash
-# 1. Copy environment template
-cp .env.example .env
+If all three gates pass, the Groq Cloud API generates a contextual response using the `llama-3.1-8b-instant` model, and the ticket is resolved in sub second time with no agent involvement.
 
-# 2. Start infrastructure services
-docker-compose up -d
+### Co Pilot Mode (Human in the Loop)
 
-# 3. Install Python dependencies
-pip install -r requirements.txt
+When any gatekeeping condition fails, the ticket is routed to the agent dashboard along with a pre drafted AI response card. The agent reviews the suggestion, edits it if necessary, and approves it with a single click. This preserves human judgment for sensitive cases while still reducing the cognitive load of composing responses from scratch.
 
-# 4. Run the development server
-uvicorn src.main:app --reload --host 0.0.0.0 --port 8000
-```
+## Architecture and Tech Stack
 
-## Project Structure
+| Layer              | Technology                                         |
+|--------------------|----------------------------------------------------|
+| Backend API        | FastAPI with async/await architecture               |
+| ORM and Database   | Async SQLAlchemy with PostgreSQL                    |
+| Validation         | Pydantic v2 with pydantic settings                  |
+| AI Inference       | Groq Cloud API (`llama-3.1-8b-instant`)             |
+| Vector Database    | Qdrant Cloud (managed vector search)                |
+| Task Queue         | Redis 7 with Celery (background processing)         |
+| Containerization   | Docker Compose (PostgreSQL 15, Redis 7)             |
+
+## Directory Structure
 
 ```
 supportflow-backend/
-├── src/
-│   ├── main.py              # FastAPI application entry point
-│   ├── api/v1/endpoints/    # Versioned API route handlers
-│   ├── core/                # Config, database, and shared utilities
-│   ├── models/              # SQLAlchemy ORM models
-│   ├── schemas/             # Pydantic request/response schemas
-│   ├── services/            # Business logic layer
-│   └── tasks/               # Celery async task definitions
-├── docker-compose.yml       # PostgreSQL + Redis containers
-├── requirements.txt         # Python dependencies
-└── .env.example             # Environment variable template
+    .env.example
+    .gitignore
+    docker-compose.yml
+    requirements.txt
+    README.md
+    src/
+        __init__.py
+        main.py
+        api/
+            __init__.py
+            v1/
+                __init__.py
+                endpoints/
+                    __init__.py
+        core/
+            __init__.py
+            config.py
+            database.py
+        models/
+            __init__.py
+        schemas/
+            __init__.py
+        services/
+            __init__.py
+        tasks/
+            __init__.py
 ```
+
