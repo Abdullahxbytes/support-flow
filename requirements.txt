@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic-settings
+sqlalchemy
+asyncpg
+redis
+celery
+groq
+qdrant-client
+python-dotenv
