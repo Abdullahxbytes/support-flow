@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from src.api.v1.router import api_router
 from src.core.config import get_settings
 
 
@@ -28,15 +29,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # ── Startup ──────────────────────────────────────────────────────
     print(f"[SupportFlow] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     print(f"[SupportFlow] Debug mode: {settings.DEBUG}")
-    # TODO (Session 3): Initialize async DB engine via database.py
-    # TODO (Session 3): Initialize Redis connection pool
 
     yield
 
     # ── Shutdown ─────────────────────────────────────────────────────
     print("[SupportFlow] Shutting down gracefully...")
-    # TODO (Session 3): Dispose DB engine
-    # TODO (Session 3): Close Redis pool
 
 
 app = FastAPI(
@@ -45,6 +42,8 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+app.include_router(api_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["System"])
