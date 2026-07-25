@@ -8,3 +8,9 @@ celery
 groq
 qdrant-client
 python-dotenv
+
+# ── Testing ───────────────────────────────────────────────────────────────────
+pytest
+pytest-asyncio
+httpx
+aiosqlite
