@@ -2,8 +2,9 @@
 
 from fastapi import APIRouter
 
-from src.api.v1.endpoints import tickets
+from src.api.v1.endpoints import tickets, health
 
 api_router = APIRouter()
 
 api_router.include_router(tickets.router, prefix="/tickets", tags=["Tickets"])
+api_router.include_router(health.router, tags=["System"])

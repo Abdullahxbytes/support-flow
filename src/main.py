@@ -19,9 +19,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     Startup:
         - Validate environment configuration (fail-fast on bad env).
-        - Future: initialize DB engine, Redis pool, Qdrant client.
+        - Initialize Groq LLM and Qdrant vector clients.
     Shutdown:
-        - Future: dispose DB engine, close Redis pool.
+        - Gracefully close Qdrant client connection.
     """
     settings = get_settings()
     app.state.settings = settings
@@ -30,9 +30,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     print(f"[SupportFlow] Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     print(f"[SupportFlow] Debug mode: {settings.DEBUG}")
 
+    # Module 2 — AI service client initialization
+    from src.services.llm_service import LLMService
+    from src.services.vector_service import VectorService
+
+    app.state.llm_service = LLMService()
+    app.state.vector_service = VectorService()
+    print("[SupportFlow] Groq LLM and Qdrant vector clients initialized.")
+
     yield
 
     # ── Shutdown ─────────────────────────────────────────────────────
+    if hasattr(app.state, "vector_service"):
+        await app.state.vector_service.close()
     print("[SupportFlow] Shutting down gracefully...")
 
 
