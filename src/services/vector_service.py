@@ -98,6 +98,101 @@ class VectorService:
                 f"Qdrant collection error for '{collection_name}': {exc}"
             ) from exc
 
+    # ── Point Operations ─────────────────────────────────────────────
+
+    async def upsert_points(
+        self,
+        collection_name: str,
+        points: list[models.PointStruct],
+    ) -> bool:
+        """Upsert vector points into a Qdrant collection asynchronously.
+
+        Parameters
+        ----------
+        collection_name:
+            Target Qdrant collection name.
+        points:
+            List of ``models.PointStruct`` containing point ID, vector, and payload.
+
+        Returns
+        -------
+        bool
+            True on successful upsert.
+        """
+        try:
+            await self._client.upsert(
+                collection_name=collection_name,
+                points=points,
+            )
+            logger.info(
+                "[VectorService] Successfully upserted %d points to '%s'.",
+                len(points),
+                collection_name,
+            )
+            return True
+        except Exception as exc:
+            logger.error(
+                "[VectorService] Failed to upsert points into '%s': %s",
+                collection_name,
+                exc,
+            )
+            raise RuntimeError(
+                f"Qdrant upsert failure for collection '{collection_name}': {exc}"
+            ) from exc
+
+    async def search_vectors(
+        self,
+        collection_name: str,
+        query_vector: list[float],
+        limit: int = 5,
+        score_threshold: Optional[float] = 0.70,
+        filter_params: Optional[models.Filter] = None,
+    ) -> list[models.ScoredPoint]:
+        """Execute nearest-neighbour similarity search against a Qdrant collection.
+
+        Parameters
+        ----------
+        collection_name:
+            Target Qdrant collection name.
+        query_vector:
+            Embedding vector representing the search query.
+        limit:
+            Maximum number of top results to return.
+        score_threshold:
+            Minimum similarity score threshold (0.0 to 1.0) to filter results.
+        filter_params:
+            Optional Qdrant payload search filter.
+
+        Returns
+        -------
+        list[models.ScoredPoint]
+            List of matching points with score and payload metadata.
+        """
+        try:
+            results = await self._client.search(
+                collection_name=collection_name,
+                query_vector=query_vector,
+                limit=limit,
+                score_threshold=score_threshold,
+                query_filter=filter_params,
+            )
+            logger.info(
+                "[VectorService] Found %d matching vectors in '%s' (threshold=%s).",
+                len(results),
+                collection_name,
+                score_threshold,
+            )
+            return results
+        except Exception as exc:
+            logger.error(
+                "[VectorService] Search failed on collection '%s': %s",
+                collection_name,
+                exc,
+            )
+            raise RuntimeError(
+                f"Qdrant search error for collection '{collection_name}': {exc}"
+            ) from exc
+
     # ── Connectivity ─────────────────────────────────────────────────
 
     async def ping_connection(self) -> bool:

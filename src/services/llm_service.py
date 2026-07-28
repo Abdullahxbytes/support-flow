@@ -113,6 +113,47 @@ class LLMService:
                 f"Groq API error (HTTP {exc.status_code}): {exc.message}"
             ) from exc
 
+    # ── Query Normalization ─────────────────────────────────────────
+
+    async def normalize_query(self, raw_query: str) -> str:
+        """Normalize a customer support query into a clean technical intent summary.
+
+        Strips customer emotion, frustration, rants, typos, and slang to yield
+        a concise, neutral technical search query (15 words or fewer) ideal
+        for semantic vector similarity matching.
+
+        Parameters
+        ----------
+        raw_query:
+            The raw text from a customer ticket or search input.
+
+        Returns
+        -------
+        str
+            Normalized, neutral technical intent summary.
+        """
+        system_prompt = (
+            "You are a technical query normalizer for an AI support system. "
+            "Your task is to strip all customer emotion, rants, frustration, typos, and slang "
+            "from the input text and extract only the core technical issue or query intent. "
+            "Output MUST be a concise, neutral, clear statement of the technical issue in 15 words or fewer. "
+            "Do NOT include conversational filler, preamble, quotes, or markdown formatting."
+        )
+
+        try:
+            normalized = await self.generate_response(
+                prompt=f"Normalize this query:\n\n{raw_query}",
+                system_prompt=system_prompt,
+                temperature=0.1,
+                max_tokens=60,
+            )
+            clean_text = normalized.strip().strip('"').strip("'")
+            logger.info("[LLMService] Query normalized successfully: '%s' -> '%s'", raw_query[:40], clean_text)
+            return clean_text if clean_text else raw_query
+        except Exception as exc:
+            logger.warning("[LLMService] Query normalization failed, falling back to raw query: %s", exc)
+            return raw_query.strip()
+
     # ── Connectivity ─────────────────────────────────────────────────
 
     async def ping(self) -> bool:
