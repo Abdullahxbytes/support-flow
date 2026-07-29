@@ -32,7 +32,9 @@ class ExecutionTrack(str, PyEnum):
     """Hybrid Autopilot execution routing track."""
 
     AUTOPILOT = "AUTOPILOT"
+    AUTOMATED = "AUTOMATED"
     COPILOT = "COPILOT"
+    HUMAN_REVIEW = "HUMAN_REVIEW"
     UNASSIGNED = "UNASSIGNED"
 
 

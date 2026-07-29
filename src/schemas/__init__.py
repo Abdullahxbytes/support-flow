@@ -8,6 +8,7 @@ from src.schemas.knowledge import (
     SearchResultItem,
     SearchResultResponse,
 )
+from src.schemas.triage import AutopilotDecisionSchema, TriageResultResponse
 
 __all__ = [
     "TicketBase",
@@ -19,4 +20,6 @@ __all__ = [
     "SearchQueryRequest",
     "SearchResultItem",
     "SearchResultResponse",
+    "AutopilotDecisionSchema",
+    "TriageResultResponse",
 ]

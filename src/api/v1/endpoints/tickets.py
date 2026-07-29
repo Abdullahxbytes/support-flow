@@ -1,10 +1,11 @@
 """FastAPI route handlers for customer support ticket operations."""
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.schemas.ticket import TicketCreate, TicketResponse, TicketUpdate
+from src.schemas.triage import TriageResultResponse
 from src.services.ticket import TicketService
 
 router = APIRouter()
@@ -69,3 +70,37 @@ async def delete_ticket(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Ticket not found"
         )
+
+
+@router.post("/{ticket_id}/triage", response_model=TriageResultResponse, status_code=status.HTTP_200_OK)
+async def triage_ticket(
+    ticket_id: int,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> TriageResultResponse:
+    """Trigger Hybrid Autopilot RAG context retrieval and LLM triage on a ticket."""
+    from src.services.triage_service import TriageService
+    from src.services.rag_service import RAGService
+    from src.services.llm_service import LLMService
+
+    # Check if app state services exist, otherwise default instances will be used
+    vector_svc = getattr(request.app.state, "vector_service", None)
+    llm_svc = getattr(request.app.state, "llm_service", None)
+
+    rag_svc = RAGService(llm_service=llm_svc)
+    if vector_svc:
+        rag_svc.ingestion_service.vector_service = vector_svc
+
+    triage_svc = TriageService(rag_service=rag_svc, llm_service=llm_svc)
+
+    try:
+        return await triage_svc.process_ticket_triage(db=db, ticket_id=ticket_id)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
+        ) from exc
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Ticket triage processing failed: {str(exc)}",
+        ) from exc

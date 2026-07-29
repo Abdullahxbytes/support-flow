@@ -154,6 +154,82 @@ class LLMService:
             logger.warning("[LLMService] Query normalization failed, falling back to raw query: %s", exc)
             return raw_query.strip()
 
+    # ── Structured Autopilot Triage Decision ────────────────────────
+
+    async def generate_triage_decision(self, prompt_context: str) -> "AutopilotDecisionSchema":
+        """Generate structured JSON triage decision for a support ticket.
+
+        Parameters
+        ----------
+        prompt_context:
+            Assembled RAG prompt context combining raw ticket, intent, and KB chunks.
+
+        Returns
+        -------
+        AutopilotDecisionSchema
+            Validated Pydantic decision object.
+        """
+        import json
+        from src.schemas.triage import AutopilotDecisionSchema
+
+        system_prompt = (
+            "You are the SupportFlow Autonomous AI Triage & Resolution Engine.\n"
+            "Analyze the provided customer support ticket against the retrieved knowledge base articles.\n"
+            "Produce a structured JSON response with EXACTLY the following keys:\n"
+            "{\n"
+            '  "suggested_response": "Drafted resolution answer or helpful response for the user",\n'
+            '  "category": "Extracted issue category (e.g., Authentication, Billing, Infrastructure, Bug, General)",\n'
+            '  "recommended_priority": "LOW" | "MEDIUM" | "HIGH" | "URGENT",\n'
+            '  "execution_track": "AUTOMATED" | "HUMAN_REVIEW",\n'
+            '  "confidence_score": 0.00 to 1.00 (float indicating answer certainty based on KB match),\n'
+            '  "reasoning": "Short 1-2 sentence rationale for priority and routing decisions"\n'
+            "}\n\n"
+            "ROUTING CRITERIA:\n"
+            "- Set execution_track='AUTOMATED' and high confidence_score (>= 0.85) ONLY if retrieved knowledge directly and completely answers the ticket.\n"
+            "- Set execution_track='HUMAN_REVIEW' and confidence_score (< 0.85) if knowledge is missing, partial, ambiguous, or requires human intervention."
+        )
+
+        try:
+            chat_completion = await self._client.chat.completions.create(
+                model=self.DEFAULT_MODEL,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": prompt_context},
+                ],
+                response_format={"type": "json_object"},
+                temperature=0.2,
+                max_tokens=600,
+            )
+            raw_json = chat_completion.choices[0].message.content or "{}"
+            data = json.loads(raw_json)
+
+            # Ensure execution_track and recommended_priority match schema expectations
+            decision = AutopilotDecisionSchema(**data)
+            logger.info(
+                "[LLMService] Autopilot decision generated — track=%s, confidence=%.2f",
+                decision.execution_track,
+                decision.confidence_score,
+            )
+            return decision
+
+        except Exception as exc:
+            logger.error("[LLMService] Failed to generate triage decision: %s", exc)
+            # Fail-safe fallback to HUMAN_REVIEW / HIGH priority
+            from src.models.ticket import ExecutionTrack, TicketPriority
+            from src.schemas.triage import AutopilotDecisionSchema
+
+            return AutopilotDecisionSchema(
+                suggested_response=(
+                    "An automated response could not be generated at this time. "
+                    "This ticket has been routed to a human support agent for manual review."
+                ),
+                category="General",
+                recommended_priority=TicketPriority.HIGH,
+                execution_track=ExecutionTrack.HUMAN_REVIEW,
+                confidence_score=0.0,
+                reasoning=f"LLM triage fallback due to error: {str(exc)}",
+            )
+
     # ── Connectivity ─────────────────────────────────────────────────
 
     async def ping(self) -> bool:
