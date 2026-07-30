@@ -8,7 +8,14 @@ from src.schemas.knowledge import (
     SearchResultItem,
     SearchResultResponse,
 )
-from src.schemas.triage import AutopilotDecisionSchema, TriageResultResponse
+from src.schemas.triage import (
+    AutopilotDecisionSchema,
+    TriageResultResponse,
+    BatchTriageRequest,
+    BatchTriageItemResult,
+    BatchTriageResultResponse,
+)
+from src.schemas.analytics import TriageSummaryMetricsResponse
 
 __all__ = [
     "TicketBase",
@@ -22,4 +29,8 @@ __all__ = [
     "SearchResultResponse",
     "AutopilotDecisionSchema",
     "TriageResultResponse",
+    "BatchTriageRequest",
+    "BatchTriageItemResult",
+    "BatchTriageResultResponse",
+    "TriageSummaryMetricsResponse",
 ]

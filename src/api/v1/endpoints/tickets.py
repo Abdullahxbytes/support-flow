@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.database import get_db
 from src.schemas.ticket import TicketCreate, TicketResponse, TicketUpdate
-from src.schemas.triage import TriageResultResponse
+from src.schemas.triage import TriageResultResponse, BatchTriageRequest, BatchTriageResultResponse
 from src.services.ticket import TicketService
 
 router = APIRouter()
@@ -104,3 +104,36 @@ async def triage_ticket(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Ticket triage processing failed: {str(exc)}",
         ) from exc
+
+
+@router.post("/batch-triage", response_model=BatchTriageResultResponse, status_code=status.HTTP_200_OK)
+async def batch_triage_tickets(
+    payload: BatchTriageRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> BatchTriageResultResponse:
+    """Trigger concurrent batch triage processing for multiple tickets with rate-limiting."""
+    from src.services.batch_triage_service import BatchTriageService
+    from src.services.triage_service import TriageService
+    from src.services.rag_service import RAGService
+
+    # Check if app state services exist, otherwise default instances will be used
+    vector_svc = getattr(request.app.state, "vector_service", None)
+    llm_svc = getattr(request.app.state, "llm_service", None)
+
+    rag_svc = RAGService(llm_service=llm_svc)
+    if vector_svc:
+        rag_svc.ingestion_service.vector_service = vector_svc
+
+    triage_svc = TriageService(rag_service=rag_svc, llm_service=llm_svc)
+    session_factory = getattr(request.app.state, "session_factory", None)
+    batch_svc = BatchTriageService(triage_service=triage_svc, session_factory=session_factory)
+
+    try:
+        return await batch_svc.process_batch_triage(db=db, ticket_ids=payload.ticket_ids)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Batch ticket triage failed: {str(exc)}",
+        ) from exc
+

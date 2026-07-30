@@ -57,10 +57,44 @@ class TriageService:
 
         full_ticket_text = f"Title: {ticket.title}\n\nDescription: {ticket.description}"
 
+        # ── AI Guardrails ────────────────────────────────────────────────
+        from src.services.guardrail_service import GuardrailService
+        guard_report = GuardrailService.sanitize_input(full_ticket_text)
+
+        if guard_report["is_injection"]:
+            logger.warning("[TriageService] Prompt injection flagged for Ticket #%d", ticket_id)
+            fallback_decision = AutopilotDecisionSchema(
+                suggested_response="Triage suspended. Input flagged by system security filters.",
+                category="Security",
+                recommended_priority=TicketPriority.HIGH,
+                execution_track=ExecutionTrack.HUMAN_REVIEW,
+                confidence_score=0.0,
+                reasoning="Flagged by prompt injection guardrails.",
+            )
+            update_payload = TicketUpdate(
+                status=TicketStatus.IN_PROGRESS,
+                priority=TicketPriority.HIGH,
+                execution_track=ExecutionTrack.HUMAN_REVIEW,
+                ai_draft_response=fallback_decision.suggested_response,
+                rag_confidence_score=0.0,
+            )
+            updated_ticket = await TicketService.update_ticket(
+                db, ticket=ticket, ticket_in=update_payload
+            )
+            return TriageResultResponse(
+                ticket=TicketResponse.model_validate(updated_ticket),
+                decision=fallback_decision,
+                normalized_query=full_ticket_text,
+                chunks_retrieved=0,
+                message=f"Ticket #{ticket_id} routed to HUMAN_REVIEW due to safety guardrails.",
+            )
+
+        sanitized_text = guard_report["sanitized_text"]
+
         try:
-            # 2. Assemble RAG context from Qdrant Cloud vector search
+            # 2. Assemble RAG context from Qdrant Cloud vector search using sanitized text
             rag_context = await self.rag_service.assemble_context(
-                ticket_text=full_ticket_text,
+                ticket_text=sanitized_text,
                 score_threshold=0.70,
             )
 

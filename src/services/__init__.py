@@ -7,6 +7,8 @@ from src.services.chunker import DocumentChunker, DocumentChunk
 from src.services.ingestion_service import IngestionService
 from src.services.rag_service import RAGService
 from src.services.triage_service import TriageService
+from src.services.guardrail_service import GuardrailService
+from src.services.batch_triage_service import BatchTriageService
 
 __all__ = [
     "TicketService",
@@ -17,4 +19,6 @@ __all__ = [
     "IngestionService",
     "RAGService",
     "TriageService",
+    "GuardrailService",
+    "BatchTriageService",
 ]

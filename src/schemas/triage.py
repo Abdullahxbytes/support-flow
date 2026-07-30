@@ -46,3 +46,33 @@ class TriageResultResponse(BaseModel):
     normalized_query: Optional[str] = None
     chunks_retrieved: int = 0
     message: str = "Ticket triage completed successfully."
+
+
+class BatchTriageRequest(BaseModel):
+    """Request payload containing list of ticket IDs to process in batch."""
+
+    ticket_ids: list[int] = Field(
+        ...,
+        min_length=1,
+        description="List of integer support ticket IDs to triage in batch.",
+        examples=[[1, 2, 3]],
+    )
+
+
+class BatchTriageItemResult(BaseModel):
+    """Execution status and result details for an individual ticket in a batch."""
+
+    ticket_id: int
+    status: str = Field(..., description="'success' or 'error'")
+    triage: Optional[TriageResultResponse] = None
+    error_message: Optional[str] = None
+
+
+class BatchTriageResultResponse(BaseModel):
+    """Summary and details of batch ticket triage processing."""
+
+    processed_count: int
+    success_count: int
+    failure_count: int
+    results: list[BatchTriageItemResult]
+
