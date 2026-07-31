@@ -43,13 +43,39 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # ── Shutdown ─────────────────────────────────────────────────────
     if hasattr(app.state, "vector_service"):
         await app.state.vector_service.close()
+    if hasattr(app.state, "llm_service"):
+        await app.state.llm_service.close()
     print("[SupportFlow] Shutting down gracefully...")
 
 
+tags_metadata = [
+    {
+        "name": "Tickets",
+        "description": "Operations on support tickets, including single and concurrent batch auto-triage.",
+    },
+    {
+        "name": "Knowledge Base",
+        "description": "Admin loading and semantic vector search over FAQs, SOPs, and policies.",
+    },
+    {
+        "name": "Analytics",
+        "description": "System-wide triage metrics, RAG confidence, and auto-resolution rates.",
+    },
+    {
+        "name": "System",
+        "description": "Health checks and connectivity diagnostics for internal microservices.",
+    },
+]
+
 app = FastAPI(
     title="SupportFlow API",
-    description="Autonomous cloud-hybrid B2B customer support triage platform.",
-    version="0.1.0",
+    description=(
+        "Autonomous cloud-hybrid B2B customer support triage platform.\n\n"
+        "Leverages async retrieval-augmented generation (RAG) using Qdrant Cloud "
+        "and high-performance structured LLM completion using Groq API."
+    ),
+    version="0.2.0-module2",
+    openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 

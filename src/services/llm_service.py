@@ -248,3 +248,9 @@ class LLMService:
         except Exception as exc:
             logger.warning("[LLMService] Groq ping failed: %s", exc)
             return False
+
+    async def close(self) -> None:
+        """Gracefully close the underlying Groq async client connection."""
+        await self._client.close()
+        logger.info("[LLMService] Groq async client connection closed.")
+
