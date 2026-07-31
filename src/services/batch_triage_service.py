@@ -38,6 +38,7 @@ class BatchTriageService:
         self,
         db: AsyncSession,
         ticket_ids: list[int],
+        max_concurrent: int = 5,
     ) -> BatchTriageResultResponse:
         """Process a list of tickets concurrently with a concurrency limit.
 
@@ -47,13 +48,15 @@ class BatchTriageService:
             Async Database Session (unused here as dedicated sessions are spawned).
         ticket_ids:
             List of support ticket IDs to process.
+        max_concurrent:
+            Maximum concurrent operations.
 
         Returns
         -------
         BatchTriageResultResponse
             Summary of successful and failed triage operations.
         """
-        semaphore = asyncio.Semaphore(5)
+        semaphore = asyncio.Semaphore(max_concurrent)
 
         async def _triage_with_semaphore(t_id: int) -> BatchTriageItemResult:
             async with semaphore:

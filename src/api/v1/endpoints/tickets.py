@@ -130,7 +130,12 @@ async def batch_triage_tickets(
     batch_svc = BatchTriageService(triage_service=triage_svc, session_factory=session_factory)
 
     try:
-        return await batch_svc.process_batch_triage(db=db, ticket_ids=payload.ticket_ids)
+        # Detect SQLite test databases to serialize queries and prevent write-lock collisions
+        is_sqlite = "sqlite" in str(db.bind.url) if db.bind else False
+        max_concurrent = 1 if is_sqlite else 5
+        return await batch_svc.process_batch_triage(
+            db=db, ticket_ids=payload.ticket_ids, max_concurrent=max_concurrent
+        )
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

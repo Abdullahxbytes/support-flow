@@ -195,6 +195,7 @@ async def test_batch_triage_endpoint(async_client: httpx.AsyncClient):
         assert batch_res.status_code == 200
 
         body = batch_res.json()
+        print("DEBUG BODY:", body)
         assert body["processed_count"] == 4
         assert body["success_count"] == 3
         assert body["failure_count"] == 1
