@@ -10,7 +10,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.v1.router import api_router
+from src.api.websocket import router as ws_router
 from src.core.config import get_settings
+from src.core.ws_manager import ConnectionManager
 
 
 @asynccontextmanager
@@ -74,12 +76,17 @@ app = FastAPI(
         "Leverages async retrieval-augmented generation (RAG) using Qdrant Cloud "
         "and high-performance structured LLM completion using Groq API."
     ),
-    version="0.2.0-module2",
+    version="0.3.0-module3",
     openapi_tags=tags_metadata,
     lifespan=lifespan,
 )
 
+# Global WebSocket connection manager singleton
+ws_manager = ConnectionManager()
+app.state.ws_manager = ws_manager
+
 app.include_router(api_router, prefix="/api/v1")
+app.include_router(ws_router, prefix="/ws")
 
 
 @app.get("/health", tags=["System"])

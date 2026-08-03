@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     QDRANT_URL: str
     QDRANT_API_KEY: str
 
+    # ── WebSockets ───────────────────────────────────────────────────
+    WS_SECRET_TOKEN: str = "supportflow-websocket-token"
+
 
 @lru_cache
 def get_settings() -> Settings:
