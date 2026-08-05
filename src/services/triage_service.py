@@ -4,8 +4,10 @@ Coordinates RAG context assembly, Groq LLM decision synthesis, routing rule
 evaluation, and PostgreSQL ticket state updates.
 """
 
+import asyncio
 import logging
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Any, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,10 +28,39 @@ class TriageService:
         self,
         rag_service: Optional[RAGService] = None,
         llm_service: Optional[LLMService] = None,
+        ws_manager: Optional[Any] = None,
     ) -> None:
         """Initialize triage service dependencies."""
         self.rag_service = rag_service or RAGService()
         self.llm_service = llm_service or LLMService()
+        self.ws_manager = ws_manager
+
+    def _build_triage_event(self, ticket, suggested_response: str) -> dict:
+        event_name = (
+            "TICKET_ESCALATED"
+            if ticket.execution_track == ExecutionTrack.HUMAN_REVIEW
+            else "TICKET_TRIAGED"
+        )
+        return {
+            "event": event_name,
+            "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+            "data": {
+                "ticket_id": str(ticket.id),
+                "status": ticket.status.value,
+                "priority": ticket.priority.value,
+                "suggested_response": suggested_response,
+            },
+        }
+
+    async def _safe_emit_triage_event(self, ticket, suggested_response: str) -> None:
+        if self.ws_manager is None:
+            return
+        payload = self._build_triage_event(ticket, suggested_response)
+        try:
+            await self.ws_manager.safe_broadcast(payload)
+        except Exception:
+            # safe_broadcast should already eat errors, but guard again
+            pass
 
     async def process_ticket_triage(
         self,
@@ -81,6 +112,13 @@ class TriageService:
             updated_ticket = await TicketService.update_ticket(
                 db, ticket=ticket, ticket_in=update_payload
             )
+
+            asyncio.create_task(
+                self._safe_emit_triage_event(
+                    updated_ticket, fallback_decision.suggested_response
+                )
+            )
+
             return TriageResultResponse(
                 ticket=TicketResponse.model_validate(updated_ticket),
                 decision=fallback_decision,
@@ -143,6 +181,12 @@ class TriageService:
                 db, ticket=ticket, ticket_in=update_payload
             )
 
+            asyncio.create_task(
+                self._safe_emit_triage_event(
+                    updated_ticket, decision.suggested_response
+                )
+            )
+
             return TriageResultResponse(
                 ticket=TicketResponse.model_validate(updated_ticket),
                 decision=decision,
@@ -181,6 +225,12 @@ class TriageService:
 
             updated_ticket = await TicketService.update_ticket(
                 db, ticket=ticket, ticket_in=update_payload
+            )
+
+            asyncio.create_task(
+                self._safe_emit_triage_event(
+                    updated_ticket, fallback_decision.suggested_response
+                )
             )
 
             return TriageResultResponse(

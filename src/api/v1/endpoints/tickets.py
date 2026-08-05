@@ -1,5 +1,8 @@
 """FastAPI route handlers for customer support ticket operations."""
 
+import asyncio
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -14,10 +17,28 @@ router = APIRouter()
 @router.post("/", response_model=TicketResponse, status_code=status.HTTP_201_CREATED)
 async def create_ticket(
     ticket_in: TicketCreate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> TicketResponse:
     """Create a new customer support ticket."""
-    return await TicketService.create_ticket(db, ticket_in)
+    ticket = await TicketService.create_ticket(db, ticket_in)
+
+    event_payload = {
+        "event": "TICKET_CREATED",
+        "timestamp": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "data": {
+            "ticket_id": str(ticket.id),
+            "status": ticket.status.value,
+            "priority": ticket.priority.value,
+            "suggested_response": ticket.ai_draft_response or "",
+        },
+    }
+
+    ws_manager = getattr(request.app.state, "ws_manager", None)
+    if ws_manager is not None:
+        asyncio.create_task(ws_manager.safe_broadcast(event_payload))
+
+    return ticket
 
 
 @router.get("/", response_model=list[TicketResponse], status_code=status.HTTP_200_OK)
@@ -91,7 +112,11 @@ async def triage_ticket(
     if vector_svc:
         rag_svc.ingestion_service.vector_service = vector_svc
 
-    triage_svc = TriageService(rag_service=rag_svc, llm_service=llm_svc)
+    triage_svc = TriageService(
+        rag_service=rag_svc,
+        llm_service=llm_svc,
+        ws_manager=getattr(request.app.state, "ws_manager", None),
+    )
 
     try:
         return await triage_svc.process_ticket_triage(db=db, ticket_id=ticket_id)

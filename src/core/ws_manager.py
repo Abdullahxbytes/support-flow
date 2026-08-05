@@ -51,3 +51,10 @@ class ConnectionManager:
             except (WebSocketDisconnect, RuntimeError) as exc:
                 logger.warning(f"Failed to send broadcast, pruning connection: {exc}")
                 await self.disconnect(websocket)
+
+    async def safe_broadcast(self, message: dict) -> None:
+        """Broadcast without raising errors that affect request handling."""
+        try:
+            await self.broadcast(message)
+        except Exception as exc:
+            logger.warning(f"WebSocket safe broadcast failed: {exc}")
