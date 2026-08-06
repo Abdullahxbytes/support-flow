@@ -6,6 +6,11 @@ interface DashboardLayoutProps {
   connectionState: WebSocketConnectionState;
   connectionError?: string | null;
   analytics?: AnalyticsSummary | null;
+  queueMetrics?: {
+    activeTickets: number;
+    escalations: number;
+    aiConfidence: number;
+  };
   children?: React.ReactNode;
 }
 
@@ -23,10 +28,11 @@ const statusLabel: Record<WebSocketConnectionState, string> = {
   CLOSED: 'Disconnected',
 };
 
-export function DashboardLayout({ connectionState, connectionError, analytics, children }: DashboardLayoutProps) {
-  const totalTickets = analytics?.total_triaged_count ?? 0;
-  const automationRate = analytics ? `${analytics.automated_resolution_rate.toFixed(1)}%` : '0.0%';
-  const confidenceScore = analytics ? `${(analytics.average_rag_confidence * 100).toFixed(0)}%` : '0%';
+export function DashboardLayout({ connectionState, connectionError, analytics, queueMetrics, children }: DashboardLayoutProps) {
+  const activeTickets = queueMetrics?.activeTickets ?? analytics?.total_triaged_count ?? 0;
+  const escalations = queueMetrics?.escalations ?? 0;
+  const confidenceScore = queueMetrics ? `${queueMetrics.aiConfidence.toFixed(1)}%` : analytics ? `${(analytics.average_rag_confidence * 100).toFixed(0)}%` : '0.0%';
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
       <header className="border-b border-slate-800 bg-slate-900/90 px-6 py-4 backdrop-blur">
@@ -51,12 +57,12 @@ export function DashboardLayout({ connectionState, connectionError, analytics, c
           </div>
           <div className="space-y-3">
             <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
-              <p className="text-sm text-slate-400">Triaged tickets</p>
-              <p className="mt-1 text-2xl font-semibold">{totalTickets}</p>
+              <p className="text-sm text-slate-400">Active tickets</p>
+              <p className="mt-1 text-2xl font-semibold">{activeTickets}</p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
-              <p className="text-sm text-slate-400">Automation rate</p>
-              <p className="mt-1 text-2xl font-semibold">{automationRate}</p>
+              <p className="text-sm text-slate-400">Escalations</p>
+              <p className="mt-1 text-2xl font-semibold">{escalations}</p>
             </div>
             <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-3">
               <p className="text-sm text-slate-400">AI triage confidence</p>

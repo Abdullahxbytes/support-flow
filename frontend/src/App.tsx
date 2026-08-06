@@ -7,9 +7,20 @@ import { useWebSocket } from './hooks/useWebSocket';
 const DEFAULT_URL = 'ws://localhost:8000/ws/tickets';
 const TOKEN = 'supportflow-websocket-token';
 
+interface QueueMetrics {
+  activeTickets: number;
+  escalations: number;
+  aiConfidence: number;
+}
+
 export default function App() {
   const { isConnected, connectionError } = useWebSocket(DEFAULT_URL, TOKEN);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [queueMetrics, setQueueMetrics] = useState<QueueMetrics>({
+    activeTickets: 0,
+    escalations: 0,
+    aiConfidence: 0,
+  });
 
   useEffect(() => {
     let active = true;
@@ -21,6 +32,10 @@ export default function App() {
           return;
         }
         setAnalytics(summary);
+        setQueueMetrics((prev) => ({
+          ...prev,
+          aiConfidence: Number((summary.average_rag_confidence * 100).toFixed(1)),
+        }));
       } catch (error) {
         console.error(error);
       }
@@ -38,8 +53,9 @@ export default function App() {
       connectionState={isConnected ? 'OPEN' : connectionError ? 'CLOSED' : 'CONNECTING'}
       connectionError={connectionError}
       analytics={analytics}
+      queueMetrics={queueMetrics}
     >
-      <LiveTicketQueue />
+      <LiveTicketQueue onMetricsChange={setQueueMetrics} />
     </DashboardLayout>
   );
 }
