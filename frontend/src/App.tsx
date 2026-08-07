@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AnalyticsSummary, fetchAnalytics } from './api/tickets';
 import { DashboardLayout } from './components/dashboard/DashboardLayout';
 import { LiveTicketQueue } from './components/dashboard/LiveTicketQueue';
+import { ChatWidget } from './components/widget/ChatWidget';
 import { useWebSocket } from './hooks/useWebSocket';
 
 const DEFAULT_URL = 'ws://localhost:8000/ws/tickets';
@@ -49,13 +50,16 @@ export default function App() {
   }, []);
 
   return (
-    <DashboardLayout
-      connectionState={isConnected ? 'OPEN' : connectionError ? 'CLOSED' : 'CONNECTING'}
-      connectionError={connectionError}
-      analytics={analytics}
-      queueMetrics={queueMetrics}
-    >
-      <LiveTicketQueue onMetricsChange={setQueueMetrics} />
-    </DashboardLayout>
+    <div className="relative min-h-screen bg-slate-950">
+      <DashboardLayout
+        connectionState={isConnected ? 'OPEN' : connectionError ? 'CLOSED' : 'CONNECTING'}
+        connectionError={connectionError}
+        analytics={analytics}
+        queueMetrics={queueMetrics}
+      >
+        <LiveTicketQueue onMetricsChange={setQueueMetrics} />
+      </DashboardLayout>
+      <ChatWidget />
+    </div>
   );
 }

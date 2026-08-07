@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/api/tickets.ts","./src/components/dashboard/dashboardlayout.tsx","./src/components/dashboard/liveticketqueue.tsx","./src/hooks/usewebsocket.ts","./src/types/websocket.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/tickets.ts","./src/components/dashboard/dashboardlayout.tsx","./src/components/dashboard/liveticketqueue.tsx","./src/components/widget/chatwidget.tsx","./src/hooks/usewebsocket.ts","./src/types/websocket.ts"],"version":"5.9.3"}
